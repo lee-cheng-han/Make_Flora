@@ -1,0 +1,6 @@
+# Dependencies for training YOLO11 and webcam rose detection
+# Install: pip install -r requirements-train.txt
+
+roboflow>=1.1.0
+ultralytics>=8.3.0
+opencv-python>=4.8.0
