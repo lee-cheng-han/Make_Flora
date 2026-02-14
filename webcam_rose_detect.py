@@ -31,10 +31,10 @@ import numpy as np
 # -----------------------------------------------------------------------------
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY", "J1p7kkelMCbw8wVR7Zwg")
 ROBOFLOW_WORKSPACE = "nic-aohns"
-# Both APIs: (workflow_id, display_label, BGR color)
+# Both APIs: (workflow_id, display_label, BGR color, min_confidence)
 ROBOFLOW_WORKFLOWS = [
-    ("find-roses", "rose", (0, 255, 0)),              # green
-    ("find-cluster-of-flowers", "flower cluster", (255, 0, 255)),  # magenta
+    ("find-roses", "rose", (0, 255, 0), 0),              # green, show all
+    ("find-cluster-of-flowers", "flower cluster", (255, 0, 255), 0.4),  # magenta, conf >= 0.4
 ]
 # Where training saves best.pt
 TRAIN_RUNS = Path(__file__).resolve().parent / "roboflow_yolo11" / "runs" / "detect" / "train"
@@ -231,16 +231,17 @@ def main():
             # Call both APIs in parallel
             with ThreadPoolExecutor(max_workers=2) as ex:
                 futures = {
-                    ex.submit(run_roboflow_api, frame_copy, wf_id): (wf_id, label, color)
-                    for wf_id, label, color in ROBOFLOW_WORKFLOWS
+                    ex.submit(run_roboflow_api, frame_copy, wf_id): (wf_id, label, color, min_conf)
+                    for wf_id, label, color, min_conf in ROBOFLOW_WORKFLOWS
                 }
                 for fut in as_completed(futures):
-                    wf_id, label, color = futures[fut]
+                    wf_id, label, color, min_conf = futures[fut]
                     try:
                         resp = fut.result()
                         raw = parse_api_predictions(resp, h, w, default_class=label)
                         for b in raw:
-                            all_boxes.append((*b[:6], color))
+                            if b[5] >= min_conf:
+                                all_boxes.append((*b[:6], color))
                     except Exception:
                         pass
             all_boxes = remove_flower_overlap_with_roses(all_boxes)
