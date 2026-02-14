@@ -5,8 +5,8 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-Write-Host "Installing dependencies (roboflow, ultralytics, opencv)..." -ForegroundColor Cyan
-pip install -r requirements-train.txt
+Write-Host "Installing dependencies (roboflow, ultralytics)..." -ForegroundColor Cyan
+if (Test-Path "requirements-train.txt") { pip install -r requirements-train.txt } else { pip install roboflow ultralytics }
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "`nStarting training..." -ForegroundColor Cyan

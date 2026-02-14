@@ -24,7 +24,7 @@ from pathlib import Path
 # -----------------------------------------------------------------------------
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY", "J1p7kkelMCbw8wVR7Zwg")
 WORKSPACE = os.getenv("ROBOFLOW_WORKSPACE", "nic-aohns")
-PROJECT = os.getenv("ROBOFLOW_PROJECT", "find-roses")
+PROJECT = os.getenv("ROBOFLOW_PROJECT", "find-roses-llg6n")
 # Use "auto" for latest version, or a number like 1, 2, 3
 VERSION = os.getenv("ROBOFLOW_VERSION", "auto")
 

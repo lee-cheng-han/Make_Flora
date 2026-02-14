@@ -10,6 +10,7 @@ env/
 
 # Training output
 roboflow_yolo11/
+*.pt
 
 # IDE
 .idea/
