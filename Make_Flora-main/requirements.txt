@@ -1,0 +1,7 @@
+# Roses & flowers detection (webcam + ESP32-CAM)
+opencv-python>=4.8.0
+numpy
+ultralytics>=8.0.0
+
+# Training (optional)
+roboflow>=1.1.0
