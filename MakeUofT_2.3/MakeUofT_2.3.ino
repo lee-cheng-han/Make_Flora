@@ -10,7 +10,7 @@ const char* password = "3.1415926";
 
 // PC running detect_stream_server.py – MUST match your computer's IP on same WiFi!
 // Run: (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback' }).IPAddress
-const char* DETECTION_SERVER = "http://172.19.129.109:5000/detection";
+const char* DETECTION_SERVER = "http://10.102.114.109:5000/detection";
 
 // ================= I2S Speaker =================
 #define PIN_BCLK 4

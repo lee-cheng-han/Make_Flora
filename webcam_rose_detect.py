@@ -121,7 +121,7 @@ DEBUG_API_RESPONSE = "--debug" in sys.argv or os.getenv("DEBUG_API", "").lower()
 
 # Camera source: 0 = built-in webcam, or URL for ESP32-CAM
 # CameraWebServer uses port 80: http://IP/stream  (some use :81)
-CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "http://172.19.129.149/stream")
+CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "http://10.102.114.149/stream")
 
 
 def find_local_model():
