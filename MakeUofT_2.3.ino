@@ -2,20 +2,19 @@
 #include <driver/i2s.h>
 #include <math.h>
 
-// ====== 引脚 ======
+
 #define PIN_BCLK 4
 #define PIN_LRC  5
 #define PIN_DIN  6
 #define PIN_BTN  2
 
-// ====== 音频参数 ======
+
 static const int SAMPLE_RATE = 44100;
 static const int16_t AMP = 11500; 
 static float phase = 0.0f;
 
 struct Note { float f; int ms; };
 
-// ====== 歌曲数据 (F F# Eb...) ======
 const Note song1[] = {
   {246.94, 250}, {0, 60}, {261.63, 250}, {0, 40}, {293.66, 250}, {0, 60}, {329.63, 250}, {0, 60},
   {329.63, 250}, {0, 60}, {392.00, 250}, {0, 60}, {392.00, 250}, {0, 40}, {392.00, 250}, {0, 60},
@@ -44,7 +43,6 @@ State state = IDLE;
 int noteIdx = 0;
 unsigned long noteStartMs = 0;
 
-// ====== 交互参数 ======
 const unsigned long DEBOUNCE_MS = 30;
 const unsigned long DOUBLE_CLICK_WINDOW_MS = 350;
 
@@ -54,7 +52,6 @@ int clickCount = 0;
 unsigned long firstClickMs = 0;
 bool countedThisPress = false;
 
-// ====== I2S 初始化 ======
 void i2sInit() {
   i2s_config_t cfg = {};
   cfg.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX);
@@ -70,7 +67,6 @@ void i2sInit() {
   i2s_set_pin(I2S_NUM_0, &pin);
 }
 
-// 核心：平滑播放函数
 void playChunk(float f_hz) {
   static int16_t buf[512];
   for (int i = 0; i < 256; i++) {
@@ -80,7 +76,7 @@ void playChunk(float f_hz) {
       phase += 2.0f * (float)M_PI * f_hz / (float)SAMPLE_RATE;
       if (phase > 2.0f * (float)M_PI) phase -= 2.0f * (float)M_PI;
     } else {
-      phase = 0; // 静音时重置相位，防止下次出声有爆音
+      phase = 0; 
     }
     buf[i*2 + 0] = v; buf[i*2 + 1] = v;
   }
@@ -137,7 +133,6 @@ void loop() {
       noteStartMs = now;
       
       if (noteIdx >= currentLen) {
-        // 【新增延迟点】：循环重新开始前，强制插入一小段静音
         for(int j=0; j<10; j++) playChunk(0); 
         noteIdx = 0; 
       }
