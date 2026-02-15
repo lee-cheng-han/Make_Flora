@@ -60,8 +60,34 @@ To train your own model on Roboflow data:
 
 Or `python train_yolo11_roboflow.py`. Requires a Roboflow project with a dataset version.
 
+## Web App (Boxes on Webpage)
+
+Display detection boxes in the frontend instead of OpenCV:
+
+1. **Start the detection stream server** (pulls from ESP32/webcam, runs detection, serves MJPEG with boxes):
+   ```bash
+   python detect_stream_server.py
+   # Or: python detect_stream_server.py --api   (Roboflow workflows)
+   # Or: python detect_stream_server.py --local (local best.pt)
+   ```
+
+2. **Set CAMERA_SOURCE** if using ESP32:
+   ```bash
+   $env:CAMERA_SOURCE = "http://YOUR_ESP32_IP/stream"
+   python detect_stream_server.py
+   ```
+
+3. **Run the frontend** (defaults to `http://localhost:5000/stream`):
+   ```bash
+   cd v1_plant_music_player/frontend
+   npm install && npm run dev
+   ```
+
+   To use raw ESP32 stream (no boxes): `VITE_STREAM_URL=http://172.19.129.149/stream npm run dev`
+
 ## Project Structure
 
+- `detect_stream_server.py` – Flask server: detection + MJPEG stream with boxes for web
 - `webcam_rose_detect.py` – main detection script (Roboflow API or local best.pt)
 - `run_rose_detect.ps1` – run detection (Windows)
 - `run_training.ps1` – run training (Windows)

@@ -6,8 +6,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const API_KEY = "AIzaSyAxFxa4XKoomll3GkPU2YrjqcRIkqx1zP8"; 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// 你的 ESP32-CAM 视频流地址
-const STREAM_URL = "http://172.19.129.149/stream";
+// Stream URL: use detection server (boxes) or raw ESP32
+// Detection server: python detect_stream_server.py, then use http://localhost:5000/stream
+const STREAM_URL = import.meta.env.VITE_STREAM_URL || "http://localhost:5000/stream";
 
 const App = () => {
   const [isExploring, setIsExploring] = useState(false);
