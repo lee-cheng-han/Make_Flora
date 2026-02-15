@@ -1,39 +1,28 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import ReactPlayer from 'react-player';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// 1. 在这里填入你的 API KEY
-const API_KEY = "AIzaSyAxFxa4XKoomll3GkPU2YrjqcRIkqx1zP8"; 
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-// Stream URL: use detection server (boxes) or raw ESP32
-// Detection server: python detect_stream_server.py, then use http://localhost:5000/stream
-const STREAM_URL = import.meta.env.VITE_STREAM_URL || "http://localhost:5000/stream";
+// Stream URL 
+const STREAM_URL = import.meta.env.VITE_STREAM_URL || "http://localhost:5001/stream";
 const DETECTION_API = STREAM_URL.replace(/\/stream\/?$/, "") + "/detection";
 
 const App = () => {
   const [isExploring, setIsExploring] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   
-  // 识别结果状态
   const [analysis, setAnalysis] = useState({
     name: "Waiting...",
-    language: "Capture a flower to see its mystery.",
+    language: "Bring a flower into view to hear its story.",
     poetic: "The silence of nature is waiting to be heard.",
     songUrl: "",
   });
 
-  // 用于引用流媒体图片
   const streamRef = useRef(null);
 
-  // Poll detection API when in camera view (no captured image) – updates Floriography from live detection
   useEffect(() => {
-    if (!isExploring || capturedImage) return;
-    const url = DETECTION_API;
+    if (!isExploring) return;
     const poll = async () => {
       try {
-        const res = await fetch(url);
+        const res = await fetch(DETECTION_API);
         if (res.ok) {
           const data = await res.json();
           setAnalysis((prev) => ({
@@ -41,91 +30,35 @@ const App = () => {
             name: data.name ?? prev.name,
             language: data.language ?? prev.language,
             poetic: data.poetic ?? prev.poetic,
+            songUrl: data.name && data.name !== "Waiting..." ? `https://www.youtube.com/results?search_query=${encodeURIComponent(data.name)}+ambient+music` : prev.songUrl,
           }));
+          if (data.name && data.name !== "Waiting..." && data.name !== "object") {
+            setIsPlaying(true);
+          } else {
+            setIsPlaying(false);
+          }
         }
-      } catch {
-        // Detection server not running or CORS – keep current state
-      }
+      } catch (e) {}
     };
     poll();
     const id = setInterval(poll, 500);
     return () => clearInterval(id);
-  }, [isExploring, capturedImage]);
+  }, [isExploring]);
 
-  // 核心功能：调用 Gemini API 识别植物
-  const identifyPlant = async (base64Image) => {
-    setLoading(true);
-    try {
-      const base64Data = base64Image.split(',')[1];
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-      const prompt = `
-        Identify the flower or plant in this image. 
-        Return the result strictly in JSON format with the following keys:
-        - "name": The common name of the flower.
-        - "language": A deep and meaningful floriography (flower language) description.
-        - "poetic": 2-3 poetic, beautiful English phrases or sentences that evoke the mood of this flower.
-        - "music_mood": A specific mood or genre for music (e.g., "Melancholic Piano", "Lively Jazz").
-      `;
-
-      const imagePart = {
-        inlineData: { data: base64Data, mimeType: "image/jpeg" },
-      };
-
-      const result = await model.generateContent([prompt, imagePart]);
-      const response = await result.response;
-      const text = response.text();
-      
-      const jsonMatch = text.match(/\{.*\}/s);
-      const data = JSON.parse(jsonMatch[0]);
-
-      setAnalysis({
-        name: data.name,
-        language: data.language,
-        poetic: data.poetic,
-        songUrl: `https://www.youtube.com/results?search_query=${data.name}+ambient+music` 
-      });
-
-    } catch (error) {
-      console.error("Gemini Error:", error);
-      setAnalysis(prev => ({ ...prev, name: "Recognition Failed", language: "Please try again." }));
-    } finally {
-      setLoading(false);
+  const globalStyles = `
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
-  };
-
-  // 从视频流 <img> 标签抓取当前帧并拍照
-  const capture = useCallback(() => {
-    const img = streamRef.current;
-    if (!img) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    
-    try {
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const imageSrc = canvas.toDataURL('image/jpeg');
-      setCapturedImage(imageSrc);
-      identifyPlant(imageSrc); // 拍照后立即识别
-    } catch (e) {
-      console.error("Capture Error (Maybe CORS issue):", e);
-      alert("无法抓取视频流，请检查跨域设置或 ESP32 连接");
+    .vinyl-spin {
+      animation: spin 15s linear infinite;
     }
-  }, [streamRef]);
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.9) !important;
+      transform: translateX(-5px);
+    }
+  `;
 
-  const reset = () => {
-    setCapturedImage(null);
-    setAnalysis({
-      name: "Waiting...",
-      language: "Capture a flower to see its mystery.",
-      poetic: "The silence of nature is waiting to be heard.",
-      songUrl: "",
-    });
-  };
-
-  // --- 视图组件 ---
   const LandingView = () => (
     <div style={styles.landingContainer}>
       <div style={styles.overlay}>
@@ -138,56 +71,82 @@ const App = () => {
 
   const CameraView = () => (
     <div style={styles.cameraViewContainer}>
-      <button onClick={() => setIsExploring(false)} style={styles.minimalBackButton}>Back to Home</button>
-      <div style={styles.mainLayout}>
-        {/* 左侧：ESP32-CAM 视频流 */}
-        <div style={styles.leftPanel}>
-          <div style={styles.mediaFrame}>
-            {!capturedImage ? (
+      <style>{globalStyles}</style>
+      <button 
+        className="back-btn"
+        onClick={() => setIsExploring(false)} 
+        style={styles.minimalBackButton}
+      >
+        ← Back to Home
+      </button>
+      
+      <div style={styles.mainGrid}>
+        {/* 左侧：视频(上) + 花语(下) */}
+        <div style={styles.leftColumn}>
+          <div style={styles.videoContainer}>
+            <div style={styles.mediaFrame}>
               <img 
                 ref={streamRef}
                 src={STREAM_URL} 
                 alt="ESP32 Stream" 
-                crossOrigin="anonymous" // 允许跨域抓取画面
+                crossOrigin="anonymous" 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
               />
-            ) : (
-              <img src={capturedImage} alt="Captured" style={styles.capturedImage} />
-            )}
-            {loading && <div style={styles.loadingOverlay}>Analyzing the Soul of the Bloom...</div>}
+              <div style={styles.liveTag}>AI SCANNING...</div>
+            </div>
           </div>
-          <div style={styles.cameraControls}>
-            {!capturedImage ? (
-              <button onClick={capture} style={styles.captureBtn}>Take Photo</button>
-            ) : (
-              <button onClick={reset} style={styles.resetBtn}>Reset</button>
-            )}
-          </div>
-        </div>
 
-        {/* 右侧：分析 */}
-        <div style={styles.rightPanel}>
-          <div style={styles.infoSection}>
-            <h2 style={styles.infoTitle}>Floriography</h2>
-            <div style={styles.infoContent}>
-              <h3 style={styles.flowerName}>{analysis.name}</h3>
-              <p style={styles.flowerLanguage}>{analysis.language}</p>
-              <div style={styles.poeticBox}>
-                <p style={styles.poeticText}>"{analysis.poetic}"</p>
+          <div style={styles.floriographyContainer}>
+            <div style={styles.glassCard}>
+              <h2 style={styles.infoTitle}>Floriography</h2>
+              <div style={styles.scrollableContent}>
+                <h3 style={styles.flowerName}>{analysis.name}</h3>
+                <p style={styles.flowerLanguage}>{analysis.language}</p>
+                <div style={styles.poeticBox}>
+                  <p style={styles.poeticText}>"{analysis.poetic}"</p>
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div style={styles.audioSection}>
-            <h2 style={styles.infoTitle}>Melody</h2>
-            <div style={styles.playerWrapper}>
-              {analysis.songUrl && (
-                <ReactPlayer url={analysis.songUrl} width="100%" height="50px" playing={!!capturedImage && !loading} controls={true} />
-              )}
-              <p style={styles.audioHint}>
-                {loading ? "Searching for the right melody..." : capturedImage ? "Harmony Found" : "Capture to begin"}
-              </p>
+        {/* 右侧：完整唱片机 */}
+        <div style={styles.rightColumn}>
+          <div style={{...styles.glassCard, ...styles.recordPlayerLayout}}>
+            <h2 style={styles.infoTitle}>Nature's Vinyl</h2>
+            
+            <div style={styles.recordWrapper}>
+              <div style={{
+                ...styles.vinylRecord,
+                animationPlayState: isPlaying ? 'running' : 'paused'
+              }} className="vinyl-spin">
+                <div style={styles.vinylGrooves}></div>
+                <div style={styles.vinylLabel}>
+                  <div style={styles.vinylHole}></div>
+                </div>
+              </div>
+              <div style={{
+                ...styles.toneArm,
+                transform: isPlaying ? 'rotate(20deg)' : 'rotate(-10deg)'
+              }}></div>
             </div>
+
+            <div style={styles.playerControls}>
+              {analysis.songUrl && (
+                <ReactPlayer 
+                  url={analysis.songUrl} 
+                  width="100%" 
+                  height="45px" 
+                  playing={isPlaying}
+                  controls={true}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                />
+              )}
+            </div>
+            <p style={styles.statusText}>
+              {isPlaying ? `Playing harmonies for ${analysis.name}` : "Waiting for nature's signal..."}
+            </p>
           </div>
         </div>
       </div>
@@ -197,33 +156,70 @@ const App = () => {
   return isExploring ? <CameraView /> : <LandingView />;
 };
 
-// --- 样式对象 ---
+const theme = {
+  bg: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2f1 100%)',
+  glass: 'rgba(255, 255, 255, 0.7)',
+  accent: '#26a69a',
+  text: '#2d3436',
+  lightText: '#636e72',
+};
+
 const styles = {
   landingContainer: { height: '100vh', width: '100vw', backgroundImage: 'url("/bg.jpg")', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  overlay: { backgroundColor: 'rgba(0, 0, 0, 0.35)', padding: '60px 80px', borderRadius: '24px', textAlign: 'center', color: 'white', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)' },
+  overlay: { backgroundColor: 'rgba(0, 0, 0, 0.35)', padding: '60px 80px', borderRadius: '24px', textAlign: 'center', color: 'white', backdropFilter: 'blur(10px)' },
   title: { fontFamily: '"Great Vibes", cursive', fontSize: '5.5rem', margin: '0' },
   subtitle: { fontFamily: '"Times New Roman", serif', fontSize: '1.2rem', margin: '10px 0 40px 0', letterSpacing: '2px', fontStyle: 'italic' },
-  startButton: { padding: '12px 50px', fontSize: '1rem', fontFamily: 'serif', backgroundColor: 'transparent', color: 'white', border: '1px solid white', borderRadius: '50px', cursor: 'pointer' },
-  cameraViewContainer: { height: '100vh', width: '100vw', backgroundColor: '#0f141a', color: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  minimalBackButton: { position: 'absolute', top: '20px', left: '20px', background: 'none', border: 'none', color: '#888', cursor: 'pointer', textDecoration: 'underline', zIndex: 10 },
-  mainLayout: { flex: 1, display: 'flex', padding: '60px 40px 40px 40px', gap: '40px' },
-  leftPanel: { flex: 1.2, display: 'flex', flexDirection: 'column', gap: '20px' },
-  mediaFrame: { flex: 1, borderRadius: '20px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid #333', backgroundColor: '#000', position: 'relative' },
-  capturedImage: { width: '100%', height: '100%', objectFit: 'cover' },
-  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.2rem', color: '#a5c9e5', fontFamily: 'serif', fontStyle: 'italic' },
-  cameraControls: { display: 'flex', justifyContent: 'center', padding: '10px' },
-  captureBtn: { padding: '15px 60px', borderRadius: '50px', border: 'none', backgroundColor: '#fff', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' },
-  resetBtn: { padding: '15px 60px', borderRadius: '50px', border: '1px solid #fff', backgroundColor: 'transparent', color: '#fff', cursor: 'pointer', fontSize: '1rem' },
-  rightPanel: { flex: 0.8, display: 'flex', flexDirection: 'column', gap: '30px' },
-  infoSection: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '20px', padding: '30px', border: '1px solid rgba(255,255,255,0.1)', overflowY: 'auto' },
-  audioSection: { height: '200px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '20px', padding: '30px', border: '1px solid rgba(255,255,255,0.1)' },
-  infoTitle: { fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', color: '#666', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' },
-  flowerName: { fontFamily: '"Great Vibes", cursive', fontSize: '3rem', color: '#a5c9e5', margin: '0 0 10px 0' },
-  flowerLanguage: { fontFamily: 'serif', fontSize: '1.1rem', lineHeight: '1.6', color: '#ccc', fontStyle: 'italic' },
-  poeticBox: { marginTop: '25px', paddingLeft: '20px', borderLeft: '2px solid #a5c9e5' },
-  poeticText: { fontFamily: 'serif', fontSize: '1.2rem', color: '#e0e0e0', lineHeight: '1.4', fontStyle: 'italic' },
-  playerWrapper: { marginTop: '10px' },
-  audioHint: { textAlign: 'center', fontSize: '0.8rem', color: '#555', marginTop: '10px' }
+  startButton: { padding: '12px 50px', fontSize: '1rem', border: '1px solid white', backgroundColor: 'transparent', color: 'white', borderRadius: '50px', cursor: 'pointer' },
+
+  cameraViewContainer: { height: '100vh', width: '100vw', background: theme.bg, display: 'flex', overflow: 'hidden', boxSizing: 'border-box' },
+  minimalBackButton: { 
+    position: 'absolute', top: '25px', left: '25px', 
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', 
+    padding: '10px 20px', borderRadius: '50px',
+    border: '1px solid white', color: theme.text, 
+    cursor: 'pointer', zIndex: 100,
+    fontSize: '0.9rem', fontWeight: '600',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+  },
+  
+  mainGrid: { 
+    flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', 
+    padding: '80px 40px 40px 40px', gap: '30px', 
+    maxHeight: '100vh', boxSizing: 'border-box' 
+  },
+  
+  leftColumn: { display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflow: 'hidden' },
+  videoContainer: { height: '45%', position: 'relative', flexShrink: 0 },
+  mediaFrame: { height: '100%', borderRadius: '24px', overflow: 'hidden', border: '6px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' },
+  liveTag: { position: 'absolute', top: '15px', right: '15px', backgroundColor: '#ff5252', color: 'white', padding: '3px 10px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' },
+  
+  floriographyContainer: { flex: 1, overflow: 'hidden' },
+  glassCard: { 
+    height: '100%', backgroundColor: theme.glass, backdropFilter: 'blur(10px)', 
+    borderRadius: '24px', padding: '25px', border: '1px solid white', 
+    boxShadow: '0 10px 30px rgba(0,0,0,0.05)', position: 'relative',
+    display: 'flex', flexDirection: 'column', boxSizing: 'border-box'
+  },
+  scrollableContent: { flex: 1, overflowY: 'auto', paddingRight: '5px' },
+  infoTitle: { fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', color: theme.lightText, marginBottom: '15px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '10px' },
+  flowerName: { fontFamily: '"Great Vibes", cursive', fontSize: '3rem', color: theme.accent, margin: '0 0 10px 0' },
+  flowerLanguage: { fontSize: '1.1rem', color: theme.text, lineHeight: '1.6', fontStyle: 'italic' },
+  poeticBox: { marginTop: '20px', paddingLeft: '15px', borderLeft: `3px solid ${theme.accent}` },
+  poeticText: { fontSize: '1.2rem', color: theme.lightText, fontStyle: 'italic' },
+  aiLoading: { position: 'absolute', top: '25px', right: '25px', fontSize: '0.8rem', color: theme.accent, fontWeight: 'bold' },
+
+  rightColumn: { display: 'flex', height: '100%', overflow: 'hidden' },
+  recordPlayerLayout: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' },
+  recordWrapper: { position: 'relative', width: 'min(350px, 80%)', aspectRatio: '1/1', margin: '20px 0' },
+  vinylRecord: { width: '100%', height: '100%', borderRadius: '50%', backgroundColor: '#181818', position: 'relative', boxShadow: '0 15px 40px rgba(0,0,0,0.3)' },
+  vinylGrooves: { position: 'absolute', top: '2%', left: '2%', right: '2%', bottom: '2%', borderRadius: '50%', background: 'repeating-radial-gradient(rgba(255,255,255,0.05) 0px, transparent 2px, rgba(255,255,255,0.05) 4px)' },
+  vinylLabel: { position: 'absolute', top: '35%', left: '35%', width: '30%', height: '30%', borderRadius: '50%', backgroundColor: theme.accent, border: '4px solid #333' },
+  vinylHole: { position: 'absolute', top: '45%', left: '45%', width: '10%', height: '10%', borderRadius: '50%', backgroundColor: '#181818' },
+  toneArm: { position: 'absolute', top: '0', right: '-20px', width: 'min(150px, 40%)', height: '10px', backgroundColor: '#757575', borderRadius: '5px', transformOrigin: 'top right', transition: 'transform 1s cubic-bezier(0.4, 0, 0.2, 1)' },
+  
+  playerControls: { width: '80%', marginTop: '20px', flexShrink: 0 },
+  statusText: { marginTop: '15px', fontSize: '0.9rem', color: theme.lightText, fontFamily: 'serif' }
 };
 
 export default App;

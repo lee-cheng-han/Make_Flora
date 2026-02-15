@@ -68,13 +68,13 @@ _latest_detection = {"classes": [], "lock": threading.Lock()}
 FLORIOGRAPHY = {
     "rose": {
         "name": "Rose",
-        "language": "Roses symbolize love, passion, and beauty. The red rose speaks the language of the heart.",
-        "poetic": "A rose by any other name would smell as sweet—love speaks in petals, and every thorn guards a bloom.",
+        "language": "Roses symbolize love, passion, and beauty. The red rose speaks the language of the heart. In floriography, a single rose means 'I love you still.'",
+        "poetic": "A rose by any other name would smell as sweet—love speaks in petals, and every thorn guards a bloom. The rose remembers the beauty it holds, even in winter.",
     },
     "flower cluster": {
         "name": "Flower Cluster",
-        "language": "A gathering of blooms speaks of abundance, joy, and the beauty of nature in full expression.",
-        "poetic": "Where flowers bloom, so does hope—a garden is a friend you can visit anytime.",
+        "language": "A gathering of blooms speaks of abundance, joy, and the beauty of nature in full expression. Flowers together celebrate life, friendship, and shared moments.",
+        "poetic": "Where flowers bloom, so does hope—a garden is a friend you can visit anytime. In the bouquet of life, each blossom adds its own note to the chorus.",
     },
 }
 
@@ -279,7 +279,7 @@ def detection():
     else:
         data = {
             "name": "Waiting...",
-            "language": "Capture a flower to see its mystery.",
+            "language": "Bring a flower into view to hear its story.",
             "poetic": "The silence of nature is waiting to be heard.",
         }
     return Response(
