@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 
 // Stream URL 
-const STREAM_URL = import.meta.env.VITE_STREAM_URL || "http://localhost:5001/stream";
+const STREAM_URL = import.meta.env.VITE_STREAM_URL || "http://localhost:5000/stream";
 const DETECTION_API = STREAM_URL.replace(/\/stream\/?$/, "") + "/detection";
 
 const App = () => {

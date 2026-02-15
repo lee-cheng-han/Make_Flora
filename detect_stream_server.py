@@ -115,9 +115,12 @@ def detection_loop():
             import socket
             p = urlparse(cam_src)
             host, port = p.hostname, p.port or 80
-            sock = socket.create_connection((host, port), timeout=8)
+            sock = socket.create_connection((host, port), timeout=10)
             sock.close()
-        except Exception:
+            print(f"[Camera] ESP32-CAM: {cam_src}")
+        except Exception as e:
+            print(f"[Camera] ESP32 unreachable ({cam_src}): {e}")
+            print("[Camera] Falling back to webcam. Check: same WiFi, CAMERA_SOURCE=http://ESP32_IP/stream")
             use_url_stream = False
             cap = cv2.VideoCapture(0)
             if not cap.isOpened():
@@ -300,6 +303,7 @@ def stream():
 
 if __name__ == "__main__":
     print(f"Starting detection stream server on http://{HOST}:{PORT}{STREAM_PATH}")
+    print(f"Camera: {CAMERA_SOURCE}")
     print("Mode: api (use --local for best.pt, --demo for sample boxes)")
     t = threading.Thread(target=detection_loop, daemon=True)
     t.start()
