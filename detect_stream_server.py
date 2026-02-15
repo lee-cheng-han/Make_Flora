@@ -62,6 +62,21 @@ app = Flask(__name__)
 
 # Shared state for detection loop
 _latest_jpeg = {"data": None, "lock": threading.Lock()}
+_latest_detection = {"classes": [], "lock": threading.Lock()}
+
+# Floriography content for each detected class (name, language, poetic)
+FLORIOGRAPHY = {
+    "rose": {
+        "name": "Rose",
+        "language": "Roses symbolize love, passion, and beauty. The red rose speaks the language of the heart.",
+        "poetic": "A rose by any other name would smell as sweet—love speaks in petals, and every thorn guards a bloom.",
+    },
+    "flower cluster": {
+        "name": "Flower Cluster",
+        "language": "A gathering of blooms speaks of abundance, joy, and the beauty of nature in full expression.",
+        "poetic": "Where flowers bloom, so does hope—a garden is a friend you can visit anytime.",
+    },
+}
 
 
 def detection_loop():
@@ -189,6 +204,7 @@ def detection_loop():
             demo_box = (xc, yc, box_w, box_h, "rose (demo)", 0.95, (0, 255, 0))
             draw_boxes(frame, [demo_box])
             cv2.putText(frame, "Demo mode", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+            _update_detection([demo_box])
         elif mode == "local":
             result = run_local_inference(local_weights, frame)
             boxes = []
@@ -200,6 +216,7 @@ def detection_loop():
                     cls_name = result.names.get(cls_id, "rose")
                     boxes.append((xywh[0], xywh[1], xywh[2], xywh[3], cls_name, conf))
             draw_boxes(frame, boxes)
+            _update_detection(boxes)
         else:
             t = time.time()
             if t - last_api_time >= API_INTERVAL_SEC and not api_busy["ok"]:
@@ -210,10 +227,30 @@ def detection_loop():
                 boxes = list(api_boxes)
             draw_boxes(frame, boxes)
             cv2.putText(frame, "Roses & flowers", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+            _update_detection(boxes)
 
         _, jpg = cv2.imencode(".jpg", frame)
         with _latest_jpeg["lock"]:
             _latest_jpeg["data"] = jpg.tobytes()
+
+
+def _update_detection(boxes):
+    """Extract unique class names from boxes and store for API."""
+    classes = []
+    seen = set()
+    for b in boxes:
+        cls_name = (b[4] if len(b) > 4 else "").lower().strip()
+        if cls_name and cls_name not in seen:
+            seen.add(cls_name)
+            # Map variants to our keys
+            if "rose" in cls_name:
+                classes.append("rose")
+            elif "flower" in cls_name or "cluster" in cls_name:
+                classes.append("flower cluster")
+            else:
+                classes.append(cls_name)
+    with _latest_detection["lock"]:
+        _latest_detection["classes"] = classes
 
 
 def generate_stream():
@@ -225,6 +262,31 @@ def generate_stream():
             yield (b"--frame\r\n"
                    b"Content-Type: image/jpeg\r\n\r\n" + data + b"\r\n")
         time.sleep(0.033)  # ~30 fps
+
+
+@app.route("/detection")
+def detection():
+    """Return current detection for Floriography panel (name, language, poetic)."""
+    with _latest_detection["lock"]:
+        classes = list(_latest_detection["classes"])
+    # Prefer rose, then flower cluster
+    if "rose" in classes:
+        data = FLORIOGRAPHY["rose"]
+    elif "flower cluster" in classes:
+        data = FLORIOGRAPHY["flower cluster"]
+    elif classes:
+        data = FLORIOGRAPHY.get(classes[0], {"name": classes[0].title(), "language": "", "poetic": ""})
+    else:
+        data = {
+            "name": "Waiting...",
+            "language": "Capture a flower to see its mystery.",
+            "poetic": "The silence of nature is waiting to be heard.",
+        }
+    return Response(
+        __import__("json").dumps(data),
+        mimetype="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
 
 
 @app.route(STREAM_PATH)

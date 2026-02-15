@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -9,6 +9,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 // Stream URL: use detection server (boxes) or raw ESP32
 // Detection server: python detect_stream_server.py, then use http://localhost:5000/stream
 const STREAM_URL = import.meta.env.VITE_STREAM_URL || "http://localhost:5000/stream";
+const DETECTION_API = STREAM_URL.replace(/\/stream\/?$/, "") + "/detection";
 
 const App = () => {
   const [isExploring, setIsExploring] = useState(false);
@@ -25,6 +26,31 @@ const App = () => {
 
   // 用于引用流媒体图片
   const streamRef = useRef(null);
+
+  // Poll detection API when in camera view (no captured image) – updates Floriography from live detection
+  useEffect(() => {
+    if (!isExploring || capturedImage) return;
+    const url = DETECTION_API;
+    const poll = async () => {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          setAnalysis((prev) => ({
+            ...prev,
+            name: data.name ?? prev.name,
+            language: data.language ?? prev.language,
+            poetic: data.poetic ?? prev.poetic,
+          }));
+        }
+      } catch {
+        // Detection server not running or CORS – keep current state
+      }
+    };
+    poll();
+    const id = setInterval(poll, 500);
+    return () => clearInterval(id);
+  }, [isExploring, capturedImage]);
 
   // 核心功能：调用 Gemini API 识别植物
   const identifyPlant = async (base64Image) => {
