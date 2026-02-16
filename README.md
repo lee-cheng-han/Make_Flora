@@ -16,12 +16,12 @@
 
 ## Gallery
 
-| |
-|:-------------------------:|
-| ![Make_Flora demo](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/004/328/821/datas/original.jpg) |
-| **Make_Flora demo (Devpost)** |
+| | |
+|:-------------------------:|:-------------------------:|
+| ![Make_Flora demo](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/004/328/821/datas/original.jpg) | ![Botanical Music Player app](images/2-app-demo.png) |
+| **Make_Flora demo (Devpost)** | **Botanical Music Player app** |
 
-> Add more screenshots to the `images/` folder as `2-opamp.png`, `3-team.png`, etc. (download from [Devpost](https://devpost.com/software/make_flora)).
+> Add more screenshots to the `images/` folder as `3-opamp.png`, `4-team.png`, etc. (download from [Devpost](https://devpost.com/software/make_flora)).
 
 ---
 
