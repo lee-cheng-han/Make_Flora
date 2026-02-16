@@ -16,14 +16,12 @@
 
 ## Gallery
 
-| | | |
-|:-------------------------:|:-------------------------:|:-------------------------:|
-| ![Make_Flora demo](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/004/328/821/datas/original.jpg) | ![Op-amp biosignal module](images/2-opamp.png) | ![Team member](images/3-team.png) |
-| **Make_Flora demo (Devpost)** | **Op-amp biosignal module** | **Team member** |
-| ![Speaker music module](images/4-speaker.png) | ![Combined modules](images/5-combined.png) | ![Video detection ESP32-CAM](images/6-espcam.png) |
-| **Speaker music module** | **Combined modules** | **Video detection** |
+| |
+|:-------------------------:|
+| ![Make_Flora demo](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/004/328/821/datas/original.jpg) |
+| **Make_Flora demo (Devpost)** |
 
-> Add screenshots to the `images/` folder as `1-website.png`, `2-opamp.png`, etc. (download from [Devpost](https://devpost.com/software/make_flora)).
+> Add more screenshots to the `images/` folder as `2-opamp.png`, `3-team.png`, etc. (download from [Devpost](https://devpost.com/software/make_flora)).
 
 ---
 
